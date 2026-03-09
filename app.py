@@ -100,7 +100,8 @@ else:
                 with st.spinner("Generating explainability report..."):
                     # Generate LIME explanation
                     exp = explainer.explain_instance(cleaned_input, pipeline.predict_proba, num_features=10)
-                    components.html(exp.as_html(), height=400, scrolling=True)
+                    html_content = f"<div style='background-color: #ffffff; padding: 20px; border-radius: 10px;'>{exp.as_html()}</div>"
+                    components.html(html_content, height=450, scrolling=True)
                     
         st.markdown("---")
         st.subheader("Need an example?")
