@@ -7,11 +7,14 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.svm import LinearSVC
+from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.pipeline import make_pipeline
+from lime.lime_text import LimeTextExplainer
+import streamlit.components.v1 as components
 
 # Set page configuration
-st.set_page_config(page_title="Sentiment Analysis App", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="Sentiment Analysis App with Explainability", page_icon="🤖", layout="wide")
 
 # Pre-processing function
 def clean_text(text):
@@ -37,31 +40,32 @@ def initialize_model():
     df.dropna(subset=['Review', 'label'], inplace=True)
     df['cleaned_review'] = df['Review'].apply(clean_text)
     
-    # Vectorize
-    vectorizer = TfidfVectorizer(max_features=3000, stop_words='english')
-    X = vectorizer.fit_transform(df['cleaned_review'])
-    y = df['label']
-    
     # Train-test split
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    train_text, test_text, y_train, y_test = train_test_split(df['cleaned_review'], df['label'], test_size=0.2, random_state=42)
     
-    # Train SVM Model
-    svm_model = LinearSVC(random_state=42)
-    svm_model.fit(X_train, y_train)
+    # Create Pipeline with Vectorizer and SVM (with probability=True for LIME)
+    pipeline = make_pipeline(
+        TfidfVectorizer(max_features=3000, stop_words='english'),
+        SVC(kernel='linear', probability=True, random_state=42)
+    )
+    pipeline.fit(train_text, y_train)
     
     # Predictions
-    svm_pred = svm_model.predict(X_test)
+    svm_pred = pipeline.predict(test_text)
     accuracy = accuracy_score(y_test, svm_pred)
-    cm = confusion_matrix(y_test, svm_pred, labels=svm_model.classes_)
+    cm = confusion_matrix(y_test, svm_pred, labels=pipeline.classes_)
     
-    return svm_model, vectorizer, accuracy, cm, df
+    # Initialize LIME Explainer
+    explainer = LimeTextExplainer(class_names=pipeline.classes_)
+    
+    return pipeline, explainer, accuracy, cm, df
 
 # Call the cached function
-svm_model, vectorizer, accuracy, cm, df = initialize_model()
+pipeline, explainer, accuracy, cm, df = initialize_model()
 
 # --- APP UI ---
-st.title("🤖 ChatGPT Review Sentiment Analyzer")
-st.markdown("This application uses natural language processing and **Support Vector Machines (SVM)** to determine if a review is **POSITIVE** or **NEGATIVE**.")
+st.title("🤖 AI Review Insights with Explainability")
+st.markdown("This application uses **Support Vector Machines (SVM)** to determine sentiment. Now with **LIME Explainability** to show you *why* the model made its decision!")
 
 if df is None:
     st.error("Dataset 'CHATGPT.csv' not found. Please make sure it's in the same folder.")
@@ -78,25 +82,30 @@ else:
         st.subheader("Analyze Your Own Text")
         user_input = st.text_area("Enter a review or sentence about ChatGPT:", height=150, placeholder="e.g. This app is incredibly helpful, but history is annoying to access.")
         
-        if st.button("Predict Sentiment"):
+        if st.button("Predict Sentiment & Explain"):
             if user_input.strip() == "":
                 st.warning("Please enter some text first.")
             else:
                 cleaned_input = clean_text(user_input)
-                vec_input = vectorizer.transform([cleaned_input])
-                prediction = svm_model.predict(vec_input)[0]
+                prediction = pipeline.predict([cleaned_input])[0]
                 
                 if prediction.lower() == 'positive':
                     st.success(f"**Sentiment Result: {prediction}** 🎉")
                 else:
                     st.error(f"**Sentiment Result: {prediction}** 😟")
                     
+                st.markdown("### Why did the model predict this?")
+                st.markdown("The words highlighted below show which terms influenced the model most (Blue for POSITIVE, Orange for NEGATIVE).")
+                
+                with st.spinner("Generating explainability report..."):
+                    # Generate LIME explanation
+                    exp = explainer.explain_instance(cleaned_input, pipeline.predict_proba, num_features=10)
+                    components.html(exp.as_html(), height=400, scrolling=True)
+                    
         st.markdown("---")
-        st.subheader("Or Try an Example:")
-        example = "I absolutely love this app, it helps me so much!"
-        st.info(f'"{example}" **→ POSITIVE**')
-        example2 = "This update is terrible and it keeps crashing."
-        st.warning(f'"{example2}" **→ NEGATIVE**')
+        st.subheader("Need an example?")
+        st.info('Copy and paste this: "I absolutely love this app, it helps me so much!"')
+        st.warning('Or this: "This update is terrible and it keeps crashing."')
 
     with tab2:
         col1, col2 = st.columns(2)
@@ -112,7 +121,7 @@ else:
             st.subheader("Confusion Matrix")
             fig2, ax2 = plt.subplots(figsize=(6,4))
             sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
-                        xticklabels=svm_model.classes_, yticklabels=svm_model.classes_, ax=ax2)
+                        xticklabels=pipeline.classes_, yticklabels=pipeline.classes_, ax=ax2)
             ax2.set_xlabel('Predicted Label')
             ax2.set_ylabel('Actual Label')
             st.pyplot(fig2)
