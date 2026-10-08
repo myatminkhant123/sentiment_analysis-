@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Sentiment Analysis</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">NLP.AI</div>
+            <h1>ChatGPT Review Analyzer</h1>
+            <p>Advanced Sentiment Analysis powered by Machine Learning</p>
+        </header>
+
+        <main>
+            <div class="analyzer-box">
+                <textarea id="reviewInput" placeholder="Type your review here... (e.g., 'This AI is incredibly helpful!')"></textarea>
+                <button id="analyzeBtn" onclick="analyzeSentiment()">
+                    <span class="btn-text">Analyze Sentiment</span>
+                    <span class="loader" id="btnLoader"></span>
+                </button>
+            </div>
+
+            <div id="resultArea" class="result-hidden">
+                <div class="result-card">
+                    <span class="label">Detected Sentiment</span>
+                    <h2 id="sentimentResult">POSITIVE</h2>
+                    <div id="sentimentIcon">✨</div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Powered by Scikit-Learn & Flask</p>
+        </footer>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
